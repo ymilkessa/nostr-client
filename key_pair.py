@@ -1,11 +1,12 @@
+import os
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
-
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 
 KEY_STORAGE_FILE = "mykeys"
+
 
 class KeyPair:
     """
@@ -13,8 +14,19 @@ class KeyPair:
     for creating and loading key pairs. Serialization adopted from 
     https://dev.to/aaronktberry/generating-encrypted-key-pairs-in-python-69b
     """
-    def __init__(self, private_key) -> None:
-        self.private_key = private_key
+
+    def __init__(self, private_key, key_store_file) -> None:
+        self.private_key: rsa.RSAPrivateKey = private_key
+        self.key_store_file = key_store_file
+
+    def hex_pub_key(self):
+        hex_pub_key = self.private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.OpenSSH, format=serialization.PublicFormat.OpenSSH)
+        print(hex_pub_key)
+
+    def delete_key_file(self):
+        os.remove(self.key_store_file)
+        pass
 
     @staticmethod
     def load_key_pair(fileName=KEY_STORAGE_FILE):
@@ -25,9 +37,10 @@ class KeyPair:
         with open(fileName, 'rb') as pem_in:
             pem_content = pem_in.read()
         password = input("Enter password below:\n")
-        private_key = load_pem_private_key(pem_content, password.encode('utf-8'), default_backend())
-        return KeyPair(private_key)
-    
+        private_key = load_pem_private_key(
+            pem_content, password.encode('utf-8'), default_backend())
+        return KeyPair(private_key, fileName)
+
     @staticmethod
     def create_new_key_pair(fileName=KEY_STORAGE_FILE):
         """
@@ -48,11 +61,11 @@ class KeyPair:
         encrypted_pem_private_key = private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.BestAvailableEncryption(password.encode('utf-8'))
+            encryption_algorithm=serialization.BestAvailableEncryption(
+                password.encode('utf-8'))
         )
         with open(fileName, 'wb') as private_key_store:
             private_key_store.write(encrypted_pem_private_key)
+        # TODO: Figure out why I don't need to save the public key (which still gets loaded somehow)
 
-        # TODO: Figure out why I don't need to save the public key (which still gets accessible somehow)
-
-        return KeyPair(private_key)
+        return KeyPair(private_key, fileName)
