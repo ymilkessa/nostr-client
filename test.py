@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
+import secp256k1
 
 from key_pair import KeyPair
 
@@ -14,7 +15,7 @@ class KeyPairTests(unittest.TestCase):
         with patch('builtins.input', return_value=self.password):
             key_pair = KeyPair.create_new_key_pair(self.key_store_file)
 
-    def doCleanups(self) -> None:
+    def tearDown(self) -> None:
         with patch('builtins.input', return_value=self.password):
             loaded_keys = KeyPair.load_key_pair(self.key_store_file)
         loaded_keys.delete_key_file()
@@ -56,7 +57,10 @@ class KeyPairTests(unittest.TestCase):
     #     public_key_bytes = loaded_keys.private_key.public_key().public_bytes(
     #         encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo)
     #     hex_string = public_key_bytes.hex()
-    #     # print(hex_string)
+    #     print(hex_string)
+    #     print("\n\n")
+    #     pk_new = secp256k1.PublicKey(b"\x02" + public_key_bytes, True)
+    #     print(pk_new.hex())
 
 
 if __name__ == '__main__':

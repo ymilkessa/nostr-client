@@ -47,6 +47,7 @@ class KeyPair:
         Creates a new pair of keys for encryption, saves them into the key storage file,
         and returns a KeyPair object containing the newly created keys.
         """
+        # (Private key should be 32 bytes, but the key size here needs to be 512+bits (64+ bytes))
         private_key = rsa.generate_private_key(
             public_exponent=65537,
             key_size=2048
