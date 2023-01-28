@@ -1,9 +1,5 @@
 import os
-import quantumrandom
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization import load_pem_private_key
+import secrets
 
 import secp256k1
 import hashlib
@@ -17,8 +13,7 @@ KEY_STORAGE_FILE = "mykeys"
 class KeyPair:
     """
     Holds the private key objects, and has a collection of methods
-    for creating and loading key pairs. Serialization adopted from 
-    https://dev.to/aaronktberry/generating-encrypted-key-pairs-in-python-69b
+    for creating and loading key pairs.
     """
 
     def __init__(self, private_key, key_store_file) -> None:
@@ -29,8 +24,8 @@ class KeyPair:
         return self.private_key.private_key
 
     def public_key_bytes(self):
-        # TODO: Figure out why this output is 33 bytes, and why the other repo simply ignores the first byte
-        return self.private_key.pubkey.serialize()
+        # Ignore the "sign byte" of the ECC public key, as per https://bips.xyz/340#public-key-generation
+        return self.private_key.pubkey.serialize()[1:]
 
     def hex_pub_key(self):
         pubkey = self.public_key_bytes()
@@ -66,11 +61,7 @@ class KeyPair:
         Creates a new valid key pair using the secp256k1 curve and saves it to a file.
         Essentially creates the keys for a new Nostr user.
         """
-        try:
-            qrng_result = quantumrandom.get_data(data_type='hex16', array_length=1, block_size=32)
-        except:
-            return Exception("Problem getting random number from QRNG API")
-        secret_bytes = bytes.fromhex(qrng_result[0])
+        secret_bytes = secrets.token_bytes(32)
         priv_key = secp256k1.PrivateKey(secret_bytes, raw=True)
 
         # Get a password with which to encrypt and save the private key

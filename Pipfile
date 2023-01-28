@@ -6,7 +6,6 @@ name = "pypi"
 [packages]
 cryptography = "*"
 secp256k1 = "*"
-quantumrandom = "*"
 
 [dev-packages]
 
