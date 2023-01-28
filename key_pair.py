@@ -1,8 +1,14 @@
 import os
+import quantumrandom
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
+
+import secp256k1
+import hashlib
+from base64 import b64encode
+from cryptography.fernet import Fernet
 
 
 KEY_STORAGE_FILE = "mykeys"
@@ -16,42 +22,56 @@ class KeyPair:
     """
 
     def __init__(self, private_key, key_store_file) -> None:
-        self.private_key: rsa.RSAPrivateKey = private_key
+        self.private_key = private_key
         self.key_store_file = key_store_file
 
+    def private_key_bytes(self):
+        return self.private_key.private_key
+
+    def public_key_bytes(self):
+        # TODO: Figure out why this output is 33 bytes, and why the other repo simply ignores the first byte
+        return self.private_key.pubkey.serialize()
+
     def hex_pub_key(self):
-        hex_pub_key = self.private_key.public_key().public_bytes(
-            encoding=serialization.Encoding.OpenSSH, format=serialization.PublicFormat.OpenSSH)
-        print(hex_pub_key)
+        pubkey = self.public_key_bytes()
+        return pubkey.hex()
+    
+    def hex_priv_key(self):
+        priv_key = self.private_key_bytes()
+        return priv_key.hex()
 
     def delete_key_file(self):
         os.remove(self.key_store_file)
-        pass
-
+    
     @staticmethod
-    def load_key_pair(fileName=KEY_STORAGE_FILE):
+    def load_key_pair(file_name = KEY_STORAGE_FILE):
         """
         Reads the key storage file located in the same directory as this module,
         and returns a new KeyPair object containing the loaded keys.
         """
-        with open(fileName, 'rb') as pem_in:
-            pem_content = pem_in.read()
         password = input("Enter password below:\n")
-        private_key = load_pem_private_key(
-            pem_content, password.encode('utf-8'), default_backend())
-        return KeyPair(private_key, fileName)
+        hash_str = hashlib.sha256(password.encode('utf-8')).hexdigest()
+        hash_as_bytes = bytes.fromhex(hash_str)
+        b64_version = b64encode(hash_as_bytes)
+        f = Fernet(b64_version)
+        with open(file_name, 'rb') as key_file:
+            key_content = key_file.read()
+        secret_bytes = f.decrypt(key_content)
+        priv_key = secp256k1.PrivateKey(secret_bytes, raw=True)
+        return KeyPair(priv_key, file_name)
 
     @staticmethod
-    def create_new_key_pair(fileName=KEY_STORAGE_FILE):
+    def create_new_key_pair(file_name = KEY_STORAGE_FILE):
         """
-        Creates a new pair of keys for encryption, saves them into the key storage file,
-        and returns a KeyPair object containing the newly created keys.
+        Creates a new valid key pair using the secp256k1 curve and saves it to a file.
+        Essentially creates the keys for a new Nostr user.
         """
-        # (Private key should be 32 bytes, but the key size here needs to be 512+bits (64+ bytes))
-        private_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048
-        )
+        try:
+            qrng_result = quantumrandom.get_data(data_type='hex16', array_length=1, block_size=32)
+        except:
+            return Exception("Problem getting random number from QRNG API")
+        secret_bytes = bytes.fromhex(qrng_result[0])
+        priv_key = secp256k1.PrivateKey(secret_bytes, raw=True)
 
         # Get a password with which to encrypt and save the private key
         password = "x"
@@ -59,14 +79,14 @@ class KeyPair:
         while password != re_entered or not password:
             password = input("Enter password below:\n")
             re_entered = input("Confirm password below:\n")
-        encrypted_pem_private_key = private_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.BestAvailableEncryption(
-                password.encode('utf-8'))
-        )
-        with open(fileName, 'wb') as private_key_store:
-            private_key_store.write(encrypted_pem_private_key)
-        # TODO: Figure out why I don't need to save the public key (which still gets loaded somehow)
+        hash_str = hashlib.sha256(password.encode('utf-8')).hexdigest()
+        hash_as_bytes = bytes.fromhex(hash_str)
+        b64_version = b64encode(hash_as_bytes)
+        f = Fernet(b64_version)
 
-        return KeyPair(private_key, fileName)
+        # Now encrypt and save the key
+        encrypted_key = f.encrypt(secret_bytes)
+        with open(file_name, 'wb') as storage_file:
+            storage_file.write(encrypted_key)
+
+        return KeyPair(priv_key, file_name)
