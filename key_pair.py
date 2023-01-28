@@ -17,35 +17,35 @@ class KeyPair:
     """
 
     def __init__(self, private_key, key_store_file=None) -> None:
-        self.private_key = private_key
+        self._private_key = private_key
         self.key_store_file = key_store_file
 
-    def private_key_bytes(self):
-        return self.private_key.private_key
+    def _private_key_bytes(self):
+        return self._private_key.private_key
 
-    def public_key_bytes(self):
+    def _public_key_bytes(self):
         # Ignore the "sign byte" of the ECC public key, as per https://bips.xyz/340#public-key-generation
-        return self.private_key.pubkey.serialize()[1:]
+        return self._private_key.pubkey.serialize()[1:]
 
     def hex_pub_key(self):
-        pubkey = self.public_key_bytes()
+        pubkey = self._public_key_bytes()
         return pubkey.hex()
     
     def hex_priv_key(self):
-        priv_key = self.private_key_bytes()
+        priv_key = self._private_key_bytes()
         return priv_key.hex()
 
     def delete_key_file(self):
         os.remove(self.key_store_file)
     
-    def sign(self, content):
+    def sign_bytes(self, content):
         """
         Returns the singature for the content
         """
-        return self.priv_key.schnorr_sign(content)
+        return self._private_key.schnorr_sign(content, None, raw=True)
 
     def verify_signature(self, content, signature):
-        return self.private_key.schnorr_verify(content, signature)
+        return self._private_key.pubkey.schnorr_verify(content, signature, None, raw=True)
     
     def save_key(self, file_name=KEY_STORAGE_FILE, set_key_store=True):
         """
@@ -63,7 +63,7 @@ class KeyPair:
         f = Fernet(b64_version)
 
         # Now encrypt and save the key
-        encrypted_key = f.encrypt(self.private_key_bytes())
+        encrypted_key = f.encrypt(self._private_key_bytes())
         with open(file_name, 'wb') as storage_file:
             storage_file.write(encrypted_key)
         if set_key_store:
