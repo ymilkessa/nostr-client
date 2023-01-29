@@ -17,17 +17,14 @@ class KeyPairTests(unittest.TestCase):
         password = "test123"
         with patch('builtins.input', return_value=password):
             self.key_pair.save_key(test_file_name)
-        private_key_str = self.key_pair.hex_priv_key()
         public_key_str = self.key_pair.hex_pub_key()
 
         # Now load the keys from file
         with patch('builtins.input', return_value=password):
             loaded_keys = KeyPair.load_key_pair(test_file_name)
-        loaded_private_key = loaded_keys.hex_priv_key()
         loaded_public_key = loaded_keys.hex_pub_key()
         
         # Ensure that the created keys are the same as the loaded keys.
-        self.assertEqual(private_key_str, loaded_private_key)
         self.assertEqual(public_key_str, loaded_public_key)
         self.key_pair.delete_key_file()
     

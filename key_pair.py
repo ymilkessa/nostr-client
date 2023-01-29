@@ -28,12 +28,24 @@ class KeyPair:
         return self._private_key.pubkey.serialize()[1:]
 
     def hex_pub_key(self):
+        """
+        Returns the public key as a string of the hexadecimal characters
+
+        Returns:
+            str: hex string of public key
+        """
         pubkey = self._public_key_bytes()
         return pubkey.hex()
     
-    def hex_priv_key(self):
-        priv_key = self._private_key_bytes()
-        return priv_key.hex()
+    # def hex_priv_key(self):
+    #     """
+    #     Returns the public key as a string of the hexadecimal characters
+
+    #     Returns:
+    #         str: hex string of public key
+    #     """
+    #     priv_key = self._private_key_bytes()
+    #     return priv_key.hex()
 
     def delete_key_file(self):
         os.remove(self.key_store_file)
@@ -75,6 +87,8 @@ class KeyPair:
         Reads the key storage file located in the same directory as this module,
         and returns a new KeyPair object containing the loaded keys.
         """
+        if file_name is None:
+            file_name = KEY_STORAGE_FILE
         password = input("Enter password below:\n")
         hash_str = hashlib.sha256(password.encode('utf-8')).hexdigest()
         hash_as_bytes = bytes.fromhex(hash_str)
