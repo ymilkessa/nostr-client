@@ -5,6 +5,7 @@ import secp256k1
 import hashlib
 from base64 import b64encode
 from cryptography.fernet import Fernet
+from getpass import getpass
 
 
 KEY_STORAGE_FILE = "mykeys"
@@ -50,14 +51,17 @@ class KeyPair:
     def delete_key_file(self):
         os.remove(self.key_store_file)
     
-    def sign_bytes(self, content):
+    def sign_bytes(self, msg):
         """
-        Returns the singature for the content
+        Returns the singature for the message
         """
-        return self._private_key.schnorr_sign(content, None, raw=True)
+        signature_bytes = self._private_key.schnorr_sign(msg, None, raw=True)
+        return signature_bytes.hex()
 
-    def verify_signature(self, content, signature):
-        return self._private_key.pubkey.schnorr_verify(content, signature, None, raw=True)
+    def verify_signature(self, msg, signature):
+        msg_bytes = bytes.fromhex(msg)
+        signature_bytes = bytes.fromhex(signature)
+        return self._private_key.pubkey.schnorr_verify(msg_bytes, signature_bytes, None, raw=True)
     
     def save_key(self, file_name=KEY_STORAGE_FILE, set_key_store=True):
         """
@@ -67,8 +71,8 @@ class KeyPair:
         password = "x"
         re_entered = ""
         while password != re_entered or not password:
-            password = input("Enter password below:\n")
-            re_entered = input("Confirm password below:\n")
+            password = getpass("Enter password below\n>")
+            re_entered = getpass("Confirm password below:\n>")
         hash_str = hashlib.sha256(password.encode('utf-8')).hexdigest()
         hash_as_bytes = bytes.fromhex(hash_str)
         b64_version = b64encode(hash_as_bytes)
@@ -89,7 +93,7 @@ class KeyPair:
         """
         if file_name is None:
             file_name = KEY_STORAGE_FILE
-        password = input("Enter password below:\n")
+        password = getpass("Enter password below:\n>")
         hash_str = hashlib.sha256(password.encode('utf-8')).hexdigest()
         hash_as_bytes = bytes.fromhex(hash_str)
         b64_version = b64encode(hash_as_bytes)

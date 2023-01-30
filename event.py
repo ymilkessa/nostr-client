@@ -1,6 +1,6 @@
 from enum import Enum
-import time
 import json
+import time
 from hashlib import sha256
 
 class EventKinds(Enum):
@@ -26,6 +26,9 @@ class BaseEvent:
         self.content = content
         self.kind = kind
         self.tags = []
+
+    def get_kind(self):
+        return self.kind.value
 
     def tag_event(self, event_id, relay_url=""):
         """
@@ -55,16 +58,26 @@ class BaseEvent:
         Serializes the event by also adding a timestamp. All contents 
         before the serialization are expected to be composed of ascii characters.
         Non-ascii characters are ignored. To include them, add ensure_ascii=True flag
-        in the call to json.dump()
+        in the call to json.dumps()
         """
         timestamp = int(time.time())
-        base_array = [0, self.author, timestamp, self.kind.value, self.tags, self.content]
-        str_format = json.dump(base_array, separators=(',', ':'))
-        return str_format.encode()
+        base_array = (timestamp, [0, self.author, timestamp, self.get_kind(), self.tags, self.content])
+        str_format = json.dumps(base_array, separators=(',', ':'))
+        return (timestamp, str_format.encode())
     
     @staticmethod
     def get_id_from_stamped_event(stamped_event):
-        return sha256(stamped_event)
+        """
+        Returns the sha256 hash of the input bytes as a bytes array.
+
+        Args:
+            stamped_event (bytes): bytes array of a serialized event, as per the nostr format
+
+        Returns:
+            bytes: 
+        """
+        hash_value = sha256(stamped_event)
+        return hash_value.hexdigest()
 
 
 class TextEvent(BaseEvent):

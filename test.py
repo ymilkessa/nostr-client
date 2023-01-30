@@ -15,15 +15,15 @@ class KeyPairTests(unittest.TestCase):
     def test_key_loading(self):
         test_file_name = "mykeys_test_loading"
         password = "test123"
-        with patch('builtins.input', return_value=password):
+        with patch('getpass.getpass', return_value=password):
             self.key_pair.save_key(test_file_name)
         public_key_str = self.key_pair.hex_pub_key()
 
-        # Now load the keys from file
-        with patch('builtins.input', return_value=password):
+        # Now load the keys from file by patching how the password is retrieved.
+        with patch('getpass.getpass', return_value=password):
             loaded_keys = KeyPair.load_key_pair(test_file_name)
         loaded_public_key = loaded_keys.hex_pub_key()
-        
+
         # Ensure that the created keys are the same as the loaded keys.
         self.assertEqual(public_key_str, loaded_public_key)
         self.key_pair.delete_key_file()
@@ -31,7 +31,7 @@ class KeyPairTests(unittest.TestCase):
     def test_signature(self):
         content = b"Hello world, this is a test message."
         signature = self.key_pair.sign_bytes(content)
-        verification_res = self.key_pair.verify_signature(content, signature)
+        verification_res = self.key_pair.verify_signature(content.hex(), signature)
         self.assertEqual(verification_res, True)
 
 if __name__ == '__main__':
