@@ -1,25 +1,27 @@
+from base_interface import BaseInterface
 from key_pair import KeyPair, KEY_STORAGE_FILE
 from event import BaseEvent, TextEvent
 import json
-import asyncio
+# import asyncio
 import websockets
+import time
+from relays import Relays, RELAY_FILE
 
 class ClientMessageType():
     EVENT = "EVENT"
     REQUEST = "REQ"
     CLOSE = "CLOSE"
 
-RELAY_FILE = "myrelays"
 
 class ClientManager:
-    def __init__(self, keys, relays=[], relay_file=RELAY_FILE) -> None:
-        self.keys = keys
-        self.relays = relays
-        self.relay_file = relay_file
+    def __init__(self, key_file=KEY_STORAGE_FILE, relay_file=RELAY_FILE) -> None:
+        self.interface = BaseInterface()
+        self.relays = Relays(relay_file, self.interface)
+        self.keys = KeyPair.get_user_keys(key_file, self.interface)
 
     def run_loop(self):
         while (True):
-            print("What may I do for you sir? ('fetch', 'post', 'subscribe', 'info' or 'exit')")
+            print("What may I do for you sir? ('fetch', 'post', 'subscribe', 'info', 'exit', or 'help')")
             command = input(">")
             if not command:
                 continue
@@ -33,12 +35,19 @@ class ClientManager:
                 if not content: continue
                 event = TextEvent(self.keys.hex_pub_key(), content)
                 payload = self.get_event_payload(event)
-                asyncio.get_event_loop().run_until_complete(self.publish_payload(payload))
+                self.publish_payload(payload)
+                # Wait for 1.5 seconds so the payload gets published
+                time.sleep(1.5)
+                # asyncio.get_event_loop().run_until_complete()
             elif command[0] in ['s', 'S']:
                 # TODO: Subscribe to some relay
                 continue
             elif command[0] in ['i', 'I']:
                 print("User:", self.keys.hex_pub_key())
+            elif command[0] in ['h', 'H']:
+                print("Commands: 'fetch', 'post', 'subscribe', 'info', 'exit', 'help', 'add_relays'")
+            elif command[0] in ['a', 'A']:
+                self.relays.get_new_relays()
     
     def get_event_payload(self, event):
         (timestamp, serialized_event) = event.stamped_event()
@@ -68,70 +77,16 @@ class ClientManager:
         """
         Publish a payload to all relays.
         """
-        if not self.relays:
+        if not self.relays.relay_urls:
             return Exception("No relays to publish to.")
-        for relay in self.relays:
+        for relay in self.relays.relay_urls:
             async with websockets.connect(relay) as connection:
                 await connection.send(payload)
                 response = await connection.recv()
                 print(response)
 
     @staticmethod
-    def initialize():
+    def initialize_saved_user():
         print("Hello sir!")
-        keys = ClientManager.get_user_keys()
-        relays = ClientManager.get_relays()
-        client = ClientManager(keys, relays)
+        client = ClientManager()
         client.run_loop()
-
-    @staticmethod
-    def get_user_keys():
-        print(f"Would you like to load user keys from '{KEY_STORAGE_FILE}'? ('yes'/'no')")
-        load_new_user = input(">")
-        if load_new_user and load_new_user[0] in ['y', 'Y']:
-            keys = KeyPair.load_key_pair(KEY_STORAGE_FILE)
-        else:
-            target_file = None
-            print("Would you like to create a new default user? ('yes'/'no')")
-            create_default_user = input(">")
-            if create_default_user and create_default_user[0] in ['y', 'Y']:
-                target_file = KEY_STORAGE_FILE
-            else:
-                timestamp = str(time.time())
-                target_file = "mykeys_" + timestamp
-            keys = KeyPair.create_new_key_pair()
-            keys.save_key(target_file)
-        return keys
-
-    def add_new_relay(self, relay):
-        self.relays.append(relay)
-
-    @staticmethod
-    def get_relays():
-        print(f"Would you like to load relay list from '{RELAY_FILE}'? ('yes'/'no')")
-        load_relay = input(">")
-        if load_relay and load_relay[0] in ['y', 'Y']:
-            relays = ClientManager.load_relays(RELAY_FILE)
-        else:
-            relays = input("Enter a comma-separated list of relays below:\n>")
-            relays = relays.split(",")
-            target = input(f"Would you like to save this list? (Hit enter to save to {RELAY_FILE}.)")
-            if not target: target = RELAY_FILE
-            ClientManager.save_relays(relays, target)
-        return relays
-
-    @staticmethod
-    def save_relays(relays, file_name=RELAY_FILE):
-        with open(file_name, "w") as f:
-            for relay in relays:
-                f.write(relay + "\n")
-            f.close()
-    
-    @staticmethod
-    def load_relays(file_name=RELAY_FILE):
-        relays = []
-        with open(file_name, "r") as f:
-            for line in f:
-                relays.append(line.strip())
-            f.close()
-        return relays

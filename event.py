@@ -61,7 +61,7 @@ class BaseEvent:
         in the call to json.dumps()
         """
         timestamp = int(time.time())
-        base_array = (timestamp, [0, self.author, timestamp, self.get_kind(), self.tags, self.content])
+        base_array = [0, self.author, timestamp, self.get_kind(), self.tags, self.content]
         str_format = json.dumps(base_array, separators=(',', ':'))
         return (timestamp, str_format.encode())
     

@@ -5,8 +5,7 @@ import secp256k1
 import hashlib
 from base64 import b64encode
 from cryptography.fernet import Fernet
-from getpass import getpass
-
+from base_interface import BaseInterface
 
 KEY_STORAGE_FILE = "mykeys"
 
@@ -37,16 +36,6 @@ class KeyPair:
         """
         pubkey = self._public_key_bytes()
         return pubkey.hex()
-    
-    # def hex_priv_key(self):
-    #     """
-    #     Returns the public key as a string of the hexadecimal characters
-
-    #     Returns:
-    #         str: hex string of public key
-    #     """
-    #     priv_key = self._private_key_bytes()
-    #     return priv_key.hex()
 
     def delete_key_file(self):
         os.remove(self.key_store_file)
@@ -63,16 +52,19 @@ class KeyPair:
         signature_bytes = bytes.fromhex(signature)
         return self._private_key.pubkey.schnorr_verify(msg_bytes, signature_bytes, None, raw=True)
     
-    def save_key(self, file_name=KEY_STORAGE_FILE, set_key_store=True):
+    def save_key(self, file_name=KEY_STORAGE_FILE, interface=BaseInterface(),set_key_store=True):
         """
         Encrypts and saves the private key to a file.
         """
+        if not file_name:
+            raise ValueError("File name must be provided.")
+
         # Get a password with which to encrypt and save the private key
         password = "x"
         re_entered = ""
         while password != re_entered or not password:
-            password = getpass("Enter password below\n>")
-            re_entered = getpass("Confirm password below:\n>")
+            password = interface.get_password("Enter password below\n>")
+            re_entered = interface.get_password("Confirm password below:\n>")
         hash_str = hashlib.sha256(password.encode('utf-8')).hexdigest()
         hash_as_bytes = bytes.fromhex(hash_str)
         b64_version = b64encode(hash_as_bytes)
@@ -86,14 +78,25 @@ class KeyPair:
             self.key_store_file = file_name
 
     @staticmethod
-    def load_key_pair(file_name = KEY_STORAGE_FILE):
+    def get_user_keys(key_file=None, interface = BaseInterface()):
+        if not key_file:
+            file_name = interface.get_input(f"Enter a file name to save the keys to: (Hit enter to use '{KEY_STORAGE_FILE}') \n>")
+            if not file_name: file_name = KEY_STORAGE_FILE
+            keys = KeyPair.create_new_key_pair()
+            keys.save_key(file_name, interface)
+        else:
+            keys = KeyPair.load_key_pair(key_file, interface)
+        return keys
+
+    @staticmethod
+    def load_key_pair(file_name = KEY_STORAGE_FILE, interface = BaseInterface()):
         """
         Reads the key storage file located in the same directory as this module,
         and returns a new KeyPair object containing the loaded keys.
         """
         if file_name is None:
             file_name = KEY_STORAGE_FILE
-        password = getpass("Enter password below:\n>")
+        password = interface.get_password("Enter password below:\n>")
         hash_str = hashlib.sha256(password.encode('utf-8')).hexdigest()
         hash_as_bytes = bytes.fromhex(hash_str)
         b64_version = b64encode(hash_as_bytes)
@@ -112,5 +115,4 @@ class KeyPair:
         """
         secret_bytes = secrets.token_bytes(32)
         priv_key = secp256k1.PrivateKey(secret_bytes, raw=True)
-
         return KeyPair(priv_key)
