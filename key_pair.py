@@ -27,7 +27,7 @@ class KeyPair:
         # Ignore the "sign byte" of the ECC public key, as per https://bips.xyz/340#public-key-generation
         return self._private_key.pubkey.serialize()[1:]
 
-    def hex_pub_key(self):
+    def pubkey_hex_string(self):
         """
         Returns the public key as a string of the hexadecimal characters
 

@@ -2,15 +2,13 @@ from base_interface import BaseInterface
 from key_pair import KeyPair, KEY_STORAGE_FILE
 from event import BaseEvent, TextEvent
 import json
-# import asyncio
+import asyncio
 import websockets
 import time
+from hashlib import sha256
 from relays import Relays, RELAY_FILE
 
-class ClientMessageType():
-    EVENT = "EVENT"
-    REQUEST = "REQ"
-    CLOSE = "CLOSE"
+from constants import ClientMessageType
 
 
 class ClientManager:
@@ -33,17 +31,19 @@ class ClientManager:
             elif command[0] in ['p', 'P']:
                 content = input("Enter content below:\n>")
                 if not content: continue
-                event = TextEvent(self.keys.hex_pub_key(), content)
+                event = TextEvent(self.keys.pubkey_hex_string(), content)
                 payload = self.get_event_payload(event)
-                self.publish_payload(payload)
-                # Wait for 1.5 seconds so the payload gets published
-                time.sleep(1.5)
-                # asyncio.get_event_loop().run_until_complete()
+                # self.publish_payload(payload)
+                # # Wait for 1.5 seconds so the payload gets published
+                # time.sleep(1.5)
+                asyncio.get_event_loop().run_until_complete(self.publish_payload(payload))
             elif command[0] in ['s', 'S']:
-                # TODO: Subscribe to some relay
-                continue
+                # TODO Setup a better subscription feature
+                payload = self.get_subscription_payload()
+                self.publish_payload(payload)
+                time.sleep(1.5)
             elif command[0] in ['i', 'I']:
-                print("User:", self.keys.hex_pub_key())
+                print("User:", self.keys.pubkey_hex_string())
             elif command[0] in ['h', 'H']:
                 print("Commands: 'fetch', 'post', 'subscribe', 'info', 'exit', 'help', 'add_relays'")
             elif command[0] in ['a', 'A']:
@@ -73,6 +73,16 @@ class ClientManager:
             }
         ])
 
+    def get_subscription_payload(self):
+        target_pubkey = self.interface.get_input("Enter the public key of the user you want to subscribe to: \n>")
+        if not target_pubkey:
+            return ""
+        my_pubkey = self.keys.pubkey_hex_string()
+        subscription_id = sha256((my_pubkey + " follows " + target_pubkey).encode('utf-8')).hexdigest()
+        return json.dumps([ClientMessageType.REQUEST, subscription_id, {
+            "authors": [target_pubkey]
+        }])
+
     async def publish_payload(self, payload):
         """
         Publish a payload to all relays.
@@ -90,3 +100,6 @@ class ClientManager:
         print("Hello sir!")
         client = ClientManager()
         client.run_loop()
+
+if __name__ == "__main__":
+    ClientManager.initialize_saved_user()
