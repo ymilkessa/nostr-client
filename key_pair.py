@@ -36,6 +36,16 @@ class KeyPair:
         """
         pubkey = self._public_key_bytes()
         return pubkey.hex()
+    
+    def privkey_hex_string(self):
+        """
+        Returns the private key as a string of the hexadecimal characters
+
+        Returns:
+            str: hex string of private key
+        """
+        privkey = self._private_key_bytes()
+        return privkey.hex()
 
     def delete_key_file(self):
         os.remove(self.key_store_file)

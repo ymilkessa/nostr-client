@@ -1,14 +1,17 @@
-from base_interface import BaseInterface
-from key_pair import KeyPair, KEY_STORAGE_FILE
-from event import BaseEvent, TextEvent
+# import asyncio
 import json
-import asyncio
-import websockets
 import time
 from hashlib import sha256
-from relays import Relays, RELAY_FILE
+from threading import Thread
 
+from websocket import create_connection
+
+from base_interface import BaseInterface
 from constants import ClientMessageType
+from event import BaseEvent, TextEvent
+from key_pair import KEY_STORAGE_FILE, KeyPair
+from relays import RELAY_FILE, Relays
+from request import Request
 
 
 class ClientManager:
@@ -33,17 +36,18 @@ class ClientManager:
                 if not content: continue
                 event = TextEvent(self.keys.pubkey_hex_string(), content)
                 payload = self.get_event_payload(event)
-                # self.publish_payload(payload)
-                # # Wait for 1.5 seconds so the payload gets published
-                # time.sleep(1.5)
-                asyncio.get_event_loop().run_until_complete(self.publish_payload(payload))
+                self.publish_payload(payload)
+                
             elif command[0] in ['s', 'S']:
                 # TODO Setup a better subscription feature
                 payload = self.get_subscription_payload()
                 self.publish_payload(payload)
                 time.sleep(1.5)
             elif command[0] in ['i', 'I']:
-                print("User:", self.keys.pubkey_hex_string())
+                print("User public key:", self.keys.pubkey_hex_string())
+                words = command.split(" ")
+                if len(words) > 1 and words[1] in ['-a', '--all']:
+                        print("User private key:", self.keys.privkey_hex_string())
             elif command[0] in ['h', 'H']:
                 print("Commands: 'fetch', 'post', 'subscribe', 'info', 'exit', 'help', 'add_relays'")
             elif command[0] in ['a', 'A']:
@@ -83,17 +87,35 @@ class ClientManager:
             "authors": [target_pubkey]
         }])
 
-    async def publish_payload(self, payload):
+    def publish_payload(self, payload):
         """
         Publish a payload to all relays.
         """
         if not self.relays.relay_urls:
             return Exception("No relays to publish to.")
+        threads = []
         for relay in self.relays.relay_urls:
-            async with websockets.connect(relay) as connection:
-                await connection.send(payload)
-                response = await connection.recv()
-                print(response)
+            # Send out each message in a separate thread
+            t = Thread(target=self.publish_to_relay, args=(relay, payload))
+            threads.append(t)
+            t.start()
+
+        # Wait for 2.5 seconds and then end the still running threads.
+        time.sleep(2.5)
+        for t in threads: 
+            if t.is_alive():
+                t.raise_exception()
+            t.join()
+
+    def publish_to_relay(self, relay_url, payload):
+        try:
+            ws = create_connection(relay_url)
+            ws.send(payload)
+            response = ws.recv()
+            print(f"Response from {relay_url}:", response)
+            ws.close()
+        except:
+            print(f"Failed to publish to {relay_url}.")
 
     @staticmethod
     def initialize_saved_user():
