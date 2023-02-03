@@ -1,17 +1,14 @@
-RELAY_FILE = "myrelays"
 from errors import FileNonExistentError
 from base_interface import BaseInterface
 
+from config import UserConfig, RELAY_FILE_KEY
+
 class Relays:
-    def __init__(self, relay_file=None, interface=BaseInterface()) -> None:
+    def __init__(self, relay_file, interface=BaseInterface()) -> None:
         self.relay_urls = []
-        self.relay_file = None
+        self.relay_file = relay_file
         self.interface = interface
 
-        if not relay_file:
-            relay_file = self.interface.get_input("Enter the name for a relay file you wish to use/create? (Hit enter to use the default '{RELAY_FILE}' file.)\n>")
-            relay_file = relay_file or RELAY_FILE
-        self.set_relay_file(relay_file)
         self.load_relays_from_file()
 
     def add_new_relays(self, relays: "list[str]"):
@@ -23,14 +20,14 @@ class Relays:
             self.save_relays()
 
     def get_new_relays(self):
-        relays = self.interface.get_input("Enter a comma-separated list of relays below:\n>")
+        relays = self.interface.get_comma_sep_list("relay URLs")
         if not relays:
             print("No relays were added.")
             return
         self.relay_urls += relays.split(",")
         self.save_relays()
 
-    def set_relay_file(self, file_name):
+    def set_new_relay_file(self, file_name):
         if not file_name:
             return ValueError("No file name given.")
         self.relay_file = file_name
@@ -48,19 +45,23 @@ class Relays:
             self.relay_urls = []
 
     def save_relays(self):
-        if not self.relay_file:
-            return FileNonExistentError("relay file")
         with open(self.relay_file, "w") as f:
-            for relay in self.relay_urls:
-                f.write(relay + "\n")
+            f.write("\n".join(self.relay_urls))
             f.close()
     
     def load_relays_from_file(self):
-        if not self.relay_file:
-            return FileNonExistentError("relay file")
         set_of_relays = set(self.relay_urls)
         with open(self.relay_file, "r") as f:
-            for line in f:
-                set_of_relays.add(line.strip())
+            lines = f.readlines()
             f.close()
-            self.relay_urls = list(set_of_relays)
+        if not lines:
+            print("No relays found in relay file.")
+            return
+        for line in lines:
+            set_of_relays.add(line.strip())
+        self.relay_urls = list(set_of_relays)
+    
+    @staticmethod
+    def get_relays(configs=UserConfig(), interface=BaseInterface()):
+        file_name = configs.get_client_config(RELAY_FILE_KEY)
+        return Relays(file_name, interface)

@@ -16,18 +16,16 @@ class RelaysTests(unittest.TestCase):
     
     def test_relays_initialization(self):
         """
-        Test that when no relay_file is provided, the default relay file is used.
+        Test that get_relays() uses the relay file provided int the config parameter.
         """
         # Patch the global RELAY_FILE variable
         test_default_file = "myrelays_test_default"
-        patcher = unittest.mock.patch("relays.RELAY_FILE", test_default_file)
+        patcher = unittest.mock.patch("config.UserConfig.get_client_config", test_default_file)
         patcher.start()
-        # patch the BaseInterface.get_input() function to return the default relay file
-        with unittest.mock.patch("base_interface.BaseInterface.get_input", return_value=test_default_file):
-            relays = Relays()
+        relays = Relays.get_relays()
         patcher.stop()
 
-        # Ensure that the default relay file was used
+        # Ensure that the mock relay file was used
         self.assertEqual(relays.relay_file, test_default_file)
         # Ensure that the test relay file was created
         self.assertTrue(os.path.exists(os.path.abspath(test_default_file)))
@@ -100,20 +98,6 @@ class RelaysTests(unittest.TestCase):
 
         os.remove(test_relay_file)
         os.remove(test_relay_file_2)
-
-    def test_set_non_existent_relay_file(self):
-        """
-        If the relay file provided does not exist, the relay_urls attribute should be empty.
-        Also the relay file should be created.
-        """
-        # first set a new relay file
-        test_relay_file = "myrelays_random_nonexistent_file"
-        relays = Relays(test_relay_file)
-        # Ensure that the relay_urls are empty
-        self.assertEqual(relays.relay_urls, [])
-        # Ensure that the relay file was created
-        self.assertTrue(os.path.exists(os.path.abspath(test_relay_file)))
-        os.remove(test_relay_file)
     
     def test_load_relays_from_file(self):
         """

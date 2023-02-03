@@ -27,43 +27,29 @@ class Request:
         Request object.
         """
         subscription_params = {}
-        # Get a comma separated id of the authors to subscribe to
-        authors_input = interface.get_input("Enter a comma-separated list of authors' pulic keys:\n>")
-        if authors_input:
-            array = authors_input.split(",")
-            subscription_params["authors"] = [author.strip() for author in array if author.strip()]
-        # Get a comma separated list of event ids to subscribe to
-        event_ids_input = interface.get_input("Enter a comma-separated list of event ids:\n>")
-        if event_ids_input:
-            array = event_ids_input.split(",")
-            subscription_params["ids"] = [event_id.strip() for event_id in array if event_id.strip()]
-        # Get a comma separated list of event kinds to subscribe to
-        event_kinds_input = interface.get_input("Enter a comma-separated list of event kinds:\n>")
-        if event_kinds_input:
-            array = event_kinds_input.split(",")
-            subscription_params["kinds"] = [event_kind.strip() for event_kind in array if event_kind.strip()]
-        # Get a comma separated list event ids referenced by the events to fetch
-        referenced_event_ids_input = interface.get_input("Enter a comma-separated list of event ids referenced by the events to fetch:\n>")
-        if referenced_event_ids_input:
-            array = referenced_event_ids_input.split(",")
-            subscription_params["#e"] = [event_id.strip() for event_id in array if event_id.strip()]
-        # Get a comma separated list of authors referenced by the events to fetch
-        referenced_event_authors_input = interface.get_input("Enter a comma-separated list of authors referenced by the events to fetch:\n>")
-        if referenced_event_authors_input:
-            array = referenced_event_authors_input.split(",")
-            subscription_params["#p"] = [author.strip() for author in array if author.strip()]
-        # Get the oldest timestamp of the events to fetch
-        since_input = interface.get_input("Enter the oldest timestamp of the events to fetch:\n>")
-        if since_input:
-            subscription_params["since"] = since_input
-        # Get the newest timestamp of the events to fetch
-        until_input = interface.get_input("Enter the newest timestamp of the events to fetch:\n>")
-        if until_input:
-            subscription_params["until"] = until_input
-        # Get the maximum number of events to fetch
-        limit_input = interface.get_input("Enter the maximum number of events to fetch:\n>")
-        if limit_input:
-            subscription_params["limit"] = limit_input
+
+        list_param_definitions = [
+            ("public keys of authors", "authors"),
+            ("event ids", "ids"),
+            ("event kinds", "kinds"),
+            ("referenced event ids", "#e"),
+            ("referenced authors", "#p"),
+        ]
+        single_item_param_definitions = [
+            ("Enter the oldest timestamp of events to fetch (in seconds since epoch):\n>", "since"),
+            ("Enter the newest timestamp of events to fetch (in seconds since epoch):\n>", "until"),
+            ("Enter the maximum number of events to fetch:\n>", "limit"),
+        ]
+
+        for item_name, item_key in list_param_definitions:
+            list_input = interface.get_comma_sep_list(item_name)
+            if list_input:
+                subscription_params[item_key] = list_input
+        
+        for prompt, param_key in single_item_param_definitions:
+            input = interface.get_input(prompt)
+            if input:
+                subscription_params[param_key] = input
         
         return Request(subscriber_id, subscription_params)
 

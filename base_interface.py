@@ -13,3 +13,8 @@ class BaseInterface:
     
     def get_password(self, prompt=">"):
         return getpass.getpass(prompt)
+
+    def get_comma_sep_list(self, item_name):
+        str_input = self.get_input(f"Enter a comma-separated list of {item_name}:\n>")
+        input_array = str_input.split(",")
+        return [item.strip() for item in input_array if item.strip()]
