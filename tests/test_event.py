@@ -1,5 +1,9 @@
 import unittest
+
+import sys
+sys.path.append("src")
 from event import BaseEvent, EventKinds
+
 
 class EventTests(unittest.TestCase):
     def setUp(self):

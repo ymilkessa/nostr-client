@@ -1,7 +1,10 @@
 import unittest
+import os
+import sys
+sys.path.append("src")
+
 from relays import Relays
 from config import RELAY_FILE_KEY
-import os
 
 class RelaysTests(unittest.TestCase):
     def setUp(self) -> None:
