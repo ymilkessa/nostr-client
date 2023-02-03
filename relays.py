@@ -22,9 +22,8 @@ class Relays:
     def get_new_relays(self):
         relays = self.interface.get_comma_sep_list("relay URLs")
         if not relays:
-            print("No relays were added.")
             return
-        self.relay_urls += relays.split(",")
+        self.relay_urls += relays
         self.save_relays()
 
     def set_new_relay_file(self, file_name):
@@ -55,7 +54,6 @@ class Relays:
             lines = f.readlines()
             f.close()
         if not lines:
-            print("No relays found in relay file.")
             return
         for line in lines:
             set_of_relays.add(line.strip())

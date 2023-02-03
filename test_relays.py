@@ -1,35 +1,23 @@
 import unittest
 from relays import Relays
+from config import RELAY_FILE_KEY
 import os
 
 class RelaysTests(unittest.TestCase):
     def setUp(self) -> None:
         # Define a test relay file
         self.test_relay_file = "myrelays_test"
-        self.relays = Relays(self.test_relay_file)
+        # Create the test relay file
+        with open(self.test_relay_file, "w") as f:
+            f.close()
+        with unittest.mock.patch("config.UserConfig.get_client_config", return_value=self.test_relay_file):
+            self.relays = Relays.get_relays()
         super().setUp()
     
     def tearDown(self) -> None:
         # Delete the test relay file
         os.remove(self.test_relay_file)
         return super().tearDown()
-    
-    def test_relays_initialization(self):
-        """
-        Test that get_relays() uses the relay file provided int the config parameter.
-        """
-        # Patch the global RELAY_FILE variable
-        test_default_file = "myrelays_test_default"
-        patcher = unittest.mock.patch("config.UserConfig.get_client_config", test_default_file)
-        patcher.start()
-        relays = Relays.get_relays()
-        patcher.stop()
-
-        # Ensure that the mock relay file was used
-        self.assertEqual(relays.relay_file, test_default_file)
-        # Ensure that the test relay file was created
-        self.assertTrue(os.path.exists(os.path.abspath(test_default_file)))
-        os.remove(test_default_file)
         
     def test_get_new_relays(self):
         """
@@ -37,11 +25,16 @@ class RelaysTests(unittest.TestCase):
         """
         # first set a new relay file
         test_relay_file = "myrelays_test_get_new_relays"
-        relays = Relays(test_relay_file)
+        with open(test_relay_file, "w") as f:
+            f.close()
+        with unittest.mock.patch("config.UserConfig.get_client_config", return_value=test_relay_file):
+            relays = Relays.get_relays()
+
         # Patch the BaseInterface.get_input() function to return a list of relay urls
         test_relays = ["relay1", "relay2", "relay3"]
         with unittest.mock.patch("base_interface.BaseInterface.get_input", return_value=",".join(test_relays)):
             relays.get_new_relays()
+        
         # Ensure that the relay file contains the same relay urls as the ones provided
         with open(test_relay_file, "r") as f:
             relay_urls = f.read().splitlines()
@@ -55,7 +48,11 @@ class RelaysTests(unittest.TestCase):
         """
         # first set a new relay file
         test_relay_file = "myrelays_no_relays_entered"
-        relays = Relays(test_relay_file)
+        with open(test_relay_file, "w") as f:
+            f.close()
+        with unittest.mock.patch("config.UserConfig.get_client_config", return_value=test_relay_file):
+            relays = Relays.get_relays()
+
         # Patch the BaseInterface.get_input() function to return an empty string
         with unittest.mock.patch("base_interface.BaseInterface.get_input", return_value=""):
             relays.get_new_relays()
@@ -77,7 +74,8 @@ class RelaysTests(unittest.TestCase):
         with open(test_relay_file, "w") as f:
             f.write("\n".join(test_relays))
 
-        relays = Relays(test_relay_file)
+        with unittest.mock.patch("config.UserConfig.get_client_config", return_value=test_relay_file):
+            relays = Relays.get_relays()
 
         # Ensure that the relay_urls are correctly loaded from the relay file
         for relay in test_relays:
@@ -90,7 +88,7 @@ class RelaysTests(unittest.TestCase):
             f.write("\n".join(test_relays_2))
         
         # Now run set_relay_file() on 'relays' and check the change to the relay_urls
-        relays.set_relay_file(test_relay_file_2)
+        relays.set_new_relay_file(test_relay_file_2)
         for relay in test_relays_2: 
             self.assertIn(relay, relays.relay_urls)
         for relay in test_relays:
@@ -110,7 +108,9 @@ class RelaysTests(unittest.TestCase):
         with open(test_relay_file, "w") as f:
             f.write("\n".join(test_relays))
 
-        relays = Relays(test_relay_file)
+        relays = None
+        with unittest.mock.patch("config.UserConfig.get_client_config", return_value=test_relay_file):
+            relays = Relays.get_relays()
 
         # Ensure that the relay_urls are correctly loaded from the relay file
         for relay in test_relays:
